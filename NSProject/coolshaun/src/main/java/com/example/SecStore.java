@@ -1,6 +1,9 @@
 package com.example;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -22,6 +25,7 @@ import java.security.cert.X509Certificate;
 import java.security.spec.PKCS8EncodedKeySpec;
 
 import javax.crypto.Cipher;
+import javax.xml.bind.DatatypeConverter;
 
 /**
  * Created by Shaun on 11/4/2016.
@@ -35,11 +39,8 @@ public class SecStore {
             ServerSocket welcomeSocket = new ServerSocket(6789);
 
             //create X509certificate object
-            InputStream fis = new FileInputStream("C:\\Users\\Shaun\\Dropbox\\50-005\\NSProjectRelease\\CA.crt");
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            X509Certificate CAcert = (X509Certificate) cf.generateCertificate(fis);
-            //Extract public key
-            PublicKey key = CAcert.getPublicKey();
+//            InputStream fis = new FileInputStream("C:\\Users\\Shaun\\Dropbox\\50-005\\NSProjectRelease\\ChiangZhiMinShaun.csr");
+            byte[] signedcert = Files.readAllBytes(Paths.get("C:\\Users\\Shaun\\Dropbox\\50-005\\NSProjectRelease\\Shaun_Chiang.crt"));
 
             String privateKeyFileName = "C:\\Users\\Shaun\\Dropbox\\50-005\\NSProjectRelease\\ns_project\\privateServer.der";
             Path path = Paths.get(privateKeyFileName);
@@ -48,15 +49,21 @@ public class SecStore {
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             PrivateKey myPrivKey = keyFactory.generatePrivate(keySpec);
             System.out.println("done with stuff");
+            Socket connectionSocket = welcomeSocket.accept();
+
+            DataInputStream is = new DataInputStream(new BufferedInputStream(connectionSocket.getInputStream()));
+            DataOutputStream os = new DataOutputStream(new BufferedOutputStream(connectionSocket.getOutputStream()));
+
+//
+//            BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
+//            BufferedOutputStream outToClient = new BufferedOutputStream(connectionSocket.getOutputStream());
+
 
 
             while (true) {
-
-                Socket connectionSocket = welcomeSocket.accept();
-                BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
-                DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
                 System.out.println("waiting");
-                clientSentence = inFromClient.readLine().trim();
+                byte[] byteData = receiveData(is);
+                clientSentence = new String(byteData).trim();
                 if (clientSentence.trim().equals("Hello SecStore, please prove your identity!")) {
                     System.out.println("first part");
                     //send private key encrypt ("Hello, this is SecStore!")
@@ -70,29 +77,39 @@ public class SecStore {
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    outToClient.writeBytes(String.valueOf(cipherText)+'\n');
+                    String base64format = DatatypeConverter.printBase64Binary(cipherText);
+                    sendData(os,cipherText);
                     System.out.println("done!");
                 } else if (clientSentence.trim().equals("Give me your certificate signed by CA")) {
                     System.out.println("second part");
                     //send server's signed certificate
-                    outToClient.writeBytes(String.valueOf(fis)+"\n");
+                    sendData(os,signedcert);
                 } else if (clientSentence.trim().equals("OK! I'm uploading now! (Handshake)")) {
                     System.out.println("last part");
-                    clientSentence = inFromClient.readLine();
+                    byteData = receiveData(is);
+                    clientSentence = new String(byteData).trim();
                     System.out.println("Received: " + clientSentence);
-                    capitalizedSentence = clientSentence.toUpperCase() + '\n';
-                    outToClient.writeBytes(capitalizedSentence);
                 }
-                welcomeSocket.close();
-
-
-
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
+    private static void sendData(DataOutputStream os, byte[] byteData) {
+        if (byteData == null)
+        {
+            return;
+        }
+        try
+        {
+            os.write(byteData);
+            os.flush();
+        }
+        catch (Exception exception)
+        {
+        }
+    }
     public static String generateNonce() {
         SecureRandom sr;
         try {
@@ -107,4 +124,17 @@ public class SecStore {
     }
 
 
+    private static byte[] receiveData(DataInputStream is) throws Exception {
+        try
+        {
+            byte[] inputData = new byte[1024];
+            is.read(inputData);
+            return inputData;
+        }
+        catch (Exception exception)
+        {
+            exception.printStackTrace();
+        }
+        return null;
+    }
 }
