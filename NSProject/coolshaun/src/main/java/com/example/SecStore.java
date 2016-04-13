@@ -5,14 +5,18 @@ import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.lang.Exception;import java.lang.String;import java.lang.System;import java.net.ServerSocket;
+import java.lang.Exception;import java.lang.String;import java.lang.System;
+import java.math.BigInteger;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -87,6 +91,19 @@ public class SecStore {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public static String generateNonce() {
+        SecureRandom sr;
+        try {
+            sr = SecureRandom.getInstance("SHA1PRNG");
+            String nonce = new BigInteger(130, sr).toString();
+
+            return nonce;
+
+        } catch (NoSuchAlgorithmException e) {
+        }
+        return null;
     }
 
 
