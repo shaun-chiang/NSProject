@@ -18,15 +18,20 @@ import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
 import javax.xml.bind.DatatypeConverter;
 
 /**
  * Created by Shaun on 11/4/2016.
  */
 public class SecStoreClient {
+    public static String filePath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\";
+
     public static void main(String argv[]) {
         String sentence = "";
         String modifiedSentence;
@@ -38,7 +43,7 @@ public class SecStoreClient {
             DataInputStream is = new DataInputStream(new BufferedInputStream(clientSocket.getInputStream()));
             DataOutputStream os = new DataOutputStream(new BufferedOutputStream(clientSocket.getOutputStream()));
             //get and convert CA's certificate and public key
-            InputStream fis2 = new FileInputStream("C:\\Users\\Shaun\\Dropbox\\50-005\\NSProjectRelease\\CA.crt");
+            InputStream fis2 = new FileInputStream(filePath+"CA.crt");
             CertificateFactory cf2 = CertificateFactory.getInstance("X.509");
             X509Certificate CACert =(X509Certificate)cf2.generateCertificate(fis2);
             PublicKey CAKey = CACert.getPublicKey();
@@ -61,28 +66,36 @@ public class SecStoreClient {
             byte[] certificate = receive(is); //this is supposed to be the certificate (signed)
             System.out.println(Arrays.toString(certificate));
             //write to certificate file
-            FileOutputStream fos = new FileOutputStream("C:\\Users\\Shaun\\Dropbox\\50-005\\NSProjectRelease\\clientreceivedcertificate.crt");
+            FileOutputStream fos = new FileOutputStream(filePath+ "crc.crt");
             fos.write(certificate);
             fos.close();
 
             //
 
-            InputStream fis = new FileInputStream("C:\\Users\\Shaun\\Dropbox\\50-005\\NSProjectRelease\\clientreceivedcertificate.crt");
+            InputStream fis = new FileInputStream("D:\\Documents\\NSProject\\NSProject\\ns_project\\crc.crt");
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
             X509Certificate ServerCert =(X509Certificate)cf.generateCertificate(fis);
 
             //check validity
             System.out.println("checking valid");
-            ServerCert.checkValidity();
-            ServerCert.verify(CAKey);
+            CACert.checkValidity();
+            CACert.verify(CAKey);
+
+            //extract Ks+
+            byte[] decryptedKsPlus = decryptWithLimits(certificate, CACert);
+
+            //compute Ks+{M}
+
+            //check result
 
             //if it's valid, get the public key and decrypt the original message
-            PublicKey key = ServerCert.getPublicKey();
+            PublicKey key = CACert.getPublicKey();
             System.out.println("decrypt M");
             Cipher dcipher = Cipher.getInstance("RSA");
             dcipher.init(Cipher.DECRYPT_MODE, key);
-            byte[] decrypedbyte = dcipher.doFinal(M);
+            byte[] decrypedbyte = decryptWithLimits(M, CACert);
             if (!new String(decrypedbyte).equals("Hello, this is SecStore!")) {
+                System.out.println("done with decrypting and they are not same");
                 return;
             }
 
@@ -93,7 +106,7 @@ public class SecStoreClient {
             //SEND THE FILE!
             try{
                 //Create object of FileReader
-                FileReader inputFile = new FileReader("C:\\Users\\Shaun\\Dropbox\\50-005\\NSProjectRelease\\sampleData\\smallFile.txt");
+                FileReader inputFile = new FileReader(filePath+"sampleData\\smallFile.txt");
                 //Instantiate the BufferedReader Class
                 BufferedReader bufferReader = new BufferedReader(inputFile);
                 //Variable to hold the one line data
@@ -147,5 +160,31 @@ public class SecStoreClient {
             exception.printStackTrace();
         }
 
+    }
+
+    private static byte[] decryptWithLimits(byte[] array, X509Certificate CACert) throws Exception {
+        PublicKey key = CACert.getPublicKey();
+        System.out.println("decrypt clientreceivedcert");
+        Cipher dcipher = Cipher.getInstance("RSA");
+        dcipher.init(Cipher.DECRYPT_MODE, key);
+        byte[] decryptedbyte = new byte[array.length];
+        System.out.println("length of array is " + array.length);
+        int numberOfArrays = (array.length/128);
+        for(int i = 0; i<numberOfArrays; i++) {
+            if(i == numberOfArrays-1) {
+                System.out.println("decipher from " + i*128 + " to " + (array.length-1));
+                decryptedbyte = dcipher.update(Arrays.copyOfRange(array, i * 128, array.length - 1));
+                System.out.println(Arrays.toString(decryptedbyte));
+
+            } else {
+                System.out.println("decipher from " + i*128 + " to " + ((i+1)*128-1));
+                decryptedbyte = dcipher.update(Arrays.copyOfRange(array, i * 128, ((i + 1) * 128)-1));
+
+            }
+
+        }
+        decryptedbyte = dcipher.doFinal(decryptedbyte);
+        System.out.println(new String(decryptedbyte));
+        return decryptedbyte;
     }
 }

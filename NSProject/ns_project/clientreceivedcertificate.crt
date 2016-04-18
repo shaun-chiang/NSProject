@@ -1,0 +1,20 @@
+Certificate:
+    Data:
+        Version: 1 (0x0)
+        Serial Number: 47 (0x2f)
+        Signature Algorithm: md5WithRSAEncryption
+        Issuer: C=SG, ST=SG, L=SG, O=SUTD, OU=ISTD, CN=Jie Yang/emailAddress=jie_yang@mymail.sutd.edu.sg
+        Validity
+            Not Before: Apr 10 06:44:26 2016 GMT
+            Not After : Apr 10 06:44:26 2017 GMT
+        Subject: C=SG, ST=Singapore, L=Singapore, O=SUTD, OU=ISTD, CN=Hazel/emailAddress=hazel_lau@mymail.sutd.edu.sg
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+            RSA Public Key: (1024 bit)
+                Modulus (1024 bit):
+                    00:d5:83:32:d8:b4:57:ff:15:12:36:6c:0d:2c:7c:
+                    50:ab:69:f5:d4:f1:5d:04:e9:69:4d:64:c4:28:ca:
+                    0f:fb:5c:fa:94:6a:ac:7a:50:54:41:14:09:fa:6f:
+                    52:1c:3a:e6:8a:14:60:61:7b:dc:83:ec:08:5c:5b:
+                    a8:3a:b6:24:77:cf:d9:2c:00:c1:be:00:65:9a:2f:
+                    a5:d2:b5:e8:74:95:3d:8a:d8:1c:
