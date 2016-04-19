@@ -31,12 +31,24 @@ import java.util.Arrays;
 import javax.crypto.Cipher;
 import javax.xml.bind.DatatypeConverter;
 
+/* THE AP CLASS:
+    Equivalent to SecStore - this is the server.
+
+    The handshake method we use is for the client to send a nonce
+    over to the server so that the server can verify itself.
+    Server will return the encrypted nonce, at which point client
+    will request the certificate signed by CA from server.
+    After decrypting the nonce using public key gotten from cert,
+    client can verify server.
+
+
+ */
+
 public class AP {
-    public static String filePath = "C:\\Users\\Shaun\\Documents\\NSProject\\NSProject\\ns_project\\";
-    public static String fileOutputPath = "C:\\Users\\Shaun\\Documents\\NSProject\\NSProject\\ns_project\\outputs\\";
+    public static String filePath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\";
+    public static String fileOutputPath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\outputs\\";
 
     public static String clientSentence;
-    public static int byteArrayLength;
 
     public static void main(String argv[]) throws Exception {
         ServerSocket welcomeSocket = new ServerSocket(6789);
@@ -60,8 +72,7 @@ public class AP {
         while(true) {
             System.out.println("*** Awaiting responses from Client! ***");
 
-            byteArrayLength = is.readInt();
-            byte[] byteData = receiveData(is, byteArrayLength);
+            byte[] byteData = receiveData(is, "not data");
 
             clientSentence = new String(byteData).trim();
             System.out.println("*** Received clientSentence: " + clientSentence + " ***");
@@ -73,8 +84,7 @@ public class AP {
                 os.write(gettingNonce);
                 os.flush();
 
-                byteArrayLength = is.readInt();
-                byteData = receiveData(is, byteArrayLength);
+                byteData = receiveData(is, "not data");
 
                 System.out.println("    Received nonce... Encrypting now.");
                 byte[] encryptedNonce = encryptText(byteData, myPrivKey);
@@ -97,23 +107,24 @@ public class AP {
                 System.out.println("    Sent shaun_chiang.crt");
             } else if (clientSentence.trim().equals("OK! I'm uploading now! (Handshake)")) {
                 //FILE UPLOAD?
-                byteArrayLength = is.readInt();
-//                    System.out.println(byteArrayLength);
-                byte[] filenameData = receiveData(is, byteArrayLength);
+                byte[] filenameData = receiveData(is, "not data");
                 String filename = new String(filenameData).trim();
                 FileOutputStream fos=new FileOutputStream(fileOutputPath + filename);
-                do {
-                    byteArrayLength = is.readInt();
-//                    System.out.println(byteArrayLength);
-                    byte[] filebyteData = receiveData(is, byteArrayLength);
+                boolean stop = false;
+                while(!stop) {
+                    byte[] filebyteData = receiveData(is, "data");
                     clientSentence = new String(filebyteData).trim();
-                    Cipher dcipher = Cipher.getInstance("RSA");
-                    dcipher.init(Cipher.DECRYPT_MODE, myPrivKey);
-                    //System.out.println(Arrays.copyOfRange(filebyteData, 0, 117).length);
-                    byte[] decryptedbyte = dcipher.doFinal(filebyteData);
-                    fos.write(decryptedbyte);
+                    if(clientSentence.trim().equals("Transmission Over!")) {
+                        stop = true;
+                    } else {
+                        Cipher dcipher = Cipher.getInstance("RSA");
+                        dcipher.init(Cipher.DECRYPT_MODE, myPrivKey);
+                        //System.out.println(Arrays.copyOfRange(filebyteData, 0, 117).length);
+                        byte[] decryptedbyte = dcipher.doFinal(filebyteData);
 
-                } while (!clientSentence.trim().equals("Transmission Over!"));
+                        fos.write(decryptedbyte);
+                    }
+                }
                 System.out.println("    File Closed");
                 fos.close();
             } else {
@@ -136,11 +147,21 @@ public class AP {
     }
 
 
-    private static byte[] receiveData(DataInputStream is, int length) throws Exception {
+    private static byte[] receiveData(DataInputStream is, String type) throws Exception {
+        int length = is.readInt();
+        System.out.println("        length is " + length + " and type is " + type);
         try {
-            byte[] inputData = new byte[length];
-            is.read(inputData);
-            return inputData;
+            if(type.equals("data")) {
+                byte[] inputData = new byte[128];
+                is.read(inputData, 0, length);
+                return inputData;
+
+            } else {
+                byte[] inputData = new byte[length];
+                is.read(inputData, 0, length);
+                return inputData;
+
+            }
         }
         catch (Exception exception) {
             exception.printStackTrace();
@@ -155,12 +176,12 @@ public class AP {
             // encrypt the plain text using the public key
             cipher.init(Cipher.ENCRYPT_MODE, myPrivKey);
             byte[] cipherText = cipher.doFinal(text);
-            System.out.println("    on EncryptText: returning cipherText");
+            System.out.println("        on EncryptText: returning cipherText");
             return cipherText;
         } catch (Exception e) {
             e.printStackTrace();
         }
-        System.out.println("    on EncryptText: returning null :(");
+        System.out.println("        on EncryptText: returning null :(");
         return null;
     }
 

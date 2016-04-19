@@ -8,6 +8,7 @@ import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
+import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -30,7 +31,7 @@ import javax.crypto.Cipher;
  * Created by kisa on 18/4/2016.
  */
 public class APClient {
-    public static String filePath = "C:\\Users\\Shaun\\Documents\\NSProject\\NSProject\\ns_project\\";
+    public static String filePath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\";
     public static int byteArrayLength;
     public static String nonce;
 
@@ -108,20 +109,20 @@ public class APClient {
 
                 System.out.println("*** Beginning file transfer ***");
                 String file = "smallFile.txt";
-                File fileToSend = new File(filePath + file);
+                File fileToSend = new File(filePath + "\\sampleData\\" +file);
                 InputStream fis3 = new FileInputStream(fileToSend);
                 byte[] fileToSendbytes = new byte[(int) fileToSend.length()];
                 fis3.read(fileToSendbytes);
 
+                System.out.println("    Sending filename over...");
                 byte[] filename = (file).getBytes();
                 os.writeInt(filename.length);
                 os.write(filename);
                 os.flush();
 
-                encryptWithLimitsandSend(fileToSendbytes, signedCert, os);
-
+                System.out.println("    Sending encrypted file over...");
+                encryptWithLimitsandSend(fileToSendbytes, signedCert, os, serverPublicKey);
                 System.out.println("    Sent encrypted file");
-
 
             } else {
                 System.out.println("*** RETURNED NONCE NOT SAME AS SENT ***");
@@ -161,8 +162,7 @@ public class APClient {
     }
 
 
-    private static void encryptWithLimitsandSend(byte[] array, X509Certificate CACert, DataOutputStream os) throws Exception {
-        PublicKey key = CACert.getPublicKey();
+    private static void encryptWithLimitsandSend(byte[] array, X509Certificate CACert, DataOutputStream os, PublicKey key) throws Exception {
         System.out.println("encrypt with limits");
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.ENCRYPT_MODE, key);
@@ -172,19 +172,23 @@ public class APClient {
         int numberOfArrays = (int)Math.ceil(array.length/117.0);
         for(int i = 0; i<numberOfArrays; i++) {
             if(i == numberOfArrays-1) {
-                System.out.println("cipher from " + i*117 + " to " + (array.length-1)+" : "+((array.length-1)-i*117));
+                System.out.println("cipher from " + i*117 + " to " + (array.length-1)+" : "+((array.length)-i*117));
+                System.out.println("PRINTING PRINTING " + new String(Arrays.toString(Arrays.copyOfRange(array, i*117, array.length-1))));
                 encryptedbyte = cipher.doFinal(Arrays.copyOfRange(array, i * 117, array.length - 1));
+                System.out.println("length is " + encryptedbyte.length);
                 System.out.println(Arrays.toString(encryptedbyte));
+                System.out.println(encryptedbyte.length);
                 os.writeInt(encryptedbyte.length);
                 os.write(encryptedbyte);
                 os.flush();
                 encryptedbyte= "Transmission Over!".getBytes();
+                System.out.println(encryptedbyte.length);
                 os.writeInt(encryptedbyte.length);
                 os.write(encryptedbyte);
                 os.flush();
 
             } else {
-                System.out.println("cipher from " + i*117 + " to " + ((i+1)*117-1)+ " : "+((((i + 1) * 117)-1)-i*117));
+                System.out.println("cipher from " + i*117 + " to " + ((i+1)*117-1)+ " : "+((((i + 1) * 117))-i*117));
                 encryptedbyte = cipher.doFinal(Arrays.copyOfRange(array, i * 117, ((i + 1) * 117) - 1));
                 System.out.println(Arrays.toString(encryptedbyte));
                 os.writeInt(encryptedbyte.length);
