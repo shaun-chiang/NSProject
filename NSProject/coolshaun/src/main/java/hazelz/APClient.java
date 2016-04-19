@@ -9,10 +9,12 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.math.BigInteger;
 import java.net.Socket;
 import java.security.NoSuchAlgorithmException;
@@ -28,7 +30,7 @@ import javax.crypto.Cipher;
  * Created by kisa on 18/4/2016.
  */
 public class APClient {
-    public static String filePath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\";
+    public static String filePath = "C:\\Users\\Shaun\\Documents\\NSProject\\NSProject\\ns_project\\";
     public static int byteArrayLength;
     public static String nonce;
 
@@ -99,6 +101,27 @@ public class APClient {
                 System.out.println("    Server authenticated!");
 
                 //START FILE UPLOAD
+                byte[] handshake = "OK! I'm uploading now! (Handshake)".getBytes();
+                os.writeInt(handshake.length);
+                os.write(handshake);
+                os.flush();
+
+                System.out.println("*** Beginning file transfer ***");
+                String file = "smallFile.txt";
+                File fileToSend = new File(filePath + file);
+                InputStream fis3 = new FileInputStream(fileToSend);
+                byte[] fileToSendbytes = new byte[(int) fileToSend.length()];
+                fis3.read(fileToSendbytes);
+
+                byte[] filename = (file).getBytes();
+                os.writeInt(filename.length);
+                os.write(filename);
+                os.flush();
+
+                encryptWithLimitsandSend(fileToSendbytes, signedCert, os);
+
+                System.out.println("    Sent encrypted file");
+
 
             } else {
                 System.out.println("*** RETURNED NONCE NOT SAME AS SENT ***");
@@ -137,30 +160,39 @@ public class APClient {
 
     }
 
-    private static byte[] decryptWithLimits(byte[] array, X509Certificate CACert) throws Exception {
+
+    private static void encryptWithLimitsandSend(byte[] array, X509Certificate CACert, DataOutputStream os) throws Exception {
         PublicKey key = CACert.getPublicKey();
-        System.out.println("decrypt clientreceivedcert");
-        Cipher dcipher = Cipher.getInstance("RSA");
-        dcipher.init(Cipher.DECRYPT_MODE, key);
-        byte[] decryptedbyte = new byte[array.length];
+        System.out.println("encrypt with limits");
+        Cipher cipher = Cipher.getInstance("RSA");
+        cipher.init(Cipher.ENCRYPT_MODE, key);
+        byte[] encryptedbyte = new byte[array.length];
         System.out.println("length of array is " + array.length);
-        int numberOfArrays = (array.length/128);
+        System.out.println("Array is: " + Arrays.toString(array));
+        int numberOfArrays = (int)Math.ceil(array.length/117.0);
         for(int i = 0; i<numberOfArrays; i++) {
             if(i == numberOfArrays-1) {
-                System.out.println("decipher from " + i*128 + " to " + (array.length-1));
-                decryptedbyte = dcipher.update(Arrays.copyOfRange(array, i * 128, array.length - 1));
-                System.out.println(Arrays.toString(decryptedbyte));
+                System.out.println("cipher from " + i*117 + " to " + (array.length-1)+" : "+((array.length-1)-i*117));
+                encryptedbyte = cipher.doFinal(Arrays.copyOfRange(array, i * 117, array.length - 1));
+                System.out.println(Arrays.toString(encryptedbyte));
+                os.writeInt(encryptedbyte.length);
+                os.write(encryptedbyte);
+                os.flush();
+                encryptedbyte= "Transmission Over!".getBytes();
+                os.writeInt(encryptedbyte.length);
+                os.write(encryptedbyte);
+                os.flush();
 
             } else {
-                System.out.println("decipher from " + i*128 + " to " + ((i+1)*128-1));
-                decryptedbyte = dcipher.update(Arrays.copyOfRange(array, i * 128, ((i + 1) * 128)-1));
-
+                System.out.println("cipher from " + i*117 + " to " + ((i+1)*117-1)+ " : "+((((i + 1) * 117)-1)-i*117));
+                encryptedbyte = cipher.doFinal(Arrays.copyOfRange(array, i * 117, ((i + 1) * 117) - 1));
+                System.out.println(Arrays.toString(encryptedbyte));
+                os.writeInt(encryptedbyte.length);
+                os.write(encryptedbyte);
+                os.flush();
             }
 
         }
-        decryptedbyte = dcipher.doFinal(decryptedbyte);
-        System.out.println(new String(decryptedbyte));
-        return decryptedbyte;
     }
 
     public static String generateNonce() {

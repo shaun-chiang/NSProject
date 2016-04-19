@@ -7,6 +7,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.Exception;import java.lang.String;import java.lang.System;
@@ -25,12 +26,15 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Arrays;
 
 import javax.crypto.Cipher;
 import javax.xml.bind.DatatypeConverter;
 
 public class AP {
-    public static String filePath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\";
+    public static String filePath = "C:\\Users\\Shaun\\Documents\\NSProject\\NSProject\\ns_project\\";
+    public static String fileOutputPath = "C:\\Users\\Shaun\\Documents\\NSProject\\NSProject\\ns_project\\outputs\\";
+
     public static String clientSentence;
     public static int byteArrayLength;
 
@@ -93,7 +97,25 @@ public class AP {
                 System.out.println("    Sent shaun_chiang.crt");
             } else if (clientSentence.trim().equals("OK! I'm uploading now! (Handshake)")) {
                 //FILE UPLOAD?
+                byteArrayLength = is.readInt();
+//                    System.out.println(byteArrayLength);
+                byte[] filenameData = receiveData(is, byteArrayLength);
+                String filename = new String(filenameData).trim();
+                FileOutputStream fos=new FileOutputStream(fileOutputPath + filename);
+                do {
+                    byteArrayLength = is.readInt();
+//                    System.out.println(byteArrayLength);
+                    byte[] filebyteData = receiveData(is, byteArrayLength);
+                    clientSentence = new String(filebyteData).trim();
+                    Cipher dcipher = Cipher.getInstance("RSA");
+                    dcipher.init(Cipher.DECRYPT_MODE, myPrivKey);
+                    //System.out.println(Arrays.copyOfRange(filebyteData, 0, 117).length);
+                    byte[] decryptedbyte = dcipher.doFinal(filebyteData);
+                    fos.write(decryptedbyte);
 
+                } while (!clientSentence.trim().equals("Transmission Over!"));
+                System.out.println("    File Closed");
+                fos.close();
             } else {
                 System.out.println("*** Either a wrong message is received... ***");
                 System.out.println("*** Or the above two actions are donee... ***");
@@ -170,5 +192,30 @@ public class AP {
         PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
         KeyFactory kf = KeyFactory.getInstance("RSA");
         return kf.generatePrivate(spec);
+    }
+    private static byte[] decryptWithLimits(byte[] array, X509Certificate CACert) throws Exception {
+        PublicKey key = CACert.getPublicKey();
+        System.out.println("decrypt in parts");
+        Cipher dcipher = Cipher.getInstance("RSA");
+        dcipher.init(Cipher.DECRYPT_MODE, key);
+        byte[] decryptedbyte = new byte[array.length];
+        System.out.println("length of array is " + array.length);
+        int numberOfArrays = (array.length/128);
+        for(int i = 0; i<numberOfArrays; i++) {
+            if(i == numberOfArrays-1) {
+                System.out.println("decipher from " + i*128 + " to " + (array.length-1));
+                decryptedbyte = dcipher.update(Arrays.copyOfRange(array, i * 128, array.length - 1));
+                System.out.println(Arrays.toString(decryptedbyte));
+
+            } else {
+                System.out.println("decipher from " + i*128 + " to " + ((i+1)*128-1));
+                decryptedbyte = dcipher.update(Arrays.copyOfRange(array, i * 128, ((i + 1) * 128)-1));
+
+            }
+
+        }
+        decryptedbyte = dcipher.doFinal(decryptedbyte);
+        System.out.println(new String(decryptedbyte));
+        return decryptedbyte;
     }
 }
