@@ -91,6 +91,9 @@ public class AP {
                 os.write(certByte);
                 os.flush();
                 System.out.println("    Sent shaun_chiang.crt");
+            } else if (clientSentence.trim().equals("OK! I'm uploading now! (Handshake)")) {
+                //FILE UPLOAD?
+
             } else {
                 System.out.println("*** Either a wrong message is received... ***");
                 System.out.println("*** Or the above two actions are donee... ***");

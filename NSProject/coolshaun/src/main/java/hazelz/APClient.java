@@ -97,6 +97,9 @@ public class APClient {
             if(nonce.equals(nonceToCompare)) {
                 System.out.println("*** RETURNED NONCE IS SAME AS SENT ***");
                 System.out.println("    Server authenticated!");
+
+                //START FILE UPLOAD
+
             } else {
                 System.out.println("*** RETURNED NONCE NOT SAME AS SENT ***");
                 System.out.println("    Server authentication failed :(");
@@ -123,8 +126,7 @@ public class APClient {
 
 
     private static void sendData(DataOutputStream os, byte[] byteData) {
-        try
-        {
+        try {
             os.write(byteData);
             os.flush();
         }
