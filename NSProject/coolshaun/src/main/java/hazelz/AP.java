@@ -10,7 +10,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.lang.Exception;import java.lang.String;import java.lang.System;
+import java.lang.Exception;
+import java.lang.String;
+import java.lang.System;
 import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -26,9 +28,14 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 
 import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
 
 /* THE AP CLASS:
@@ -45,9 +52,9 @@ import javax.xml.bind.DatatypeConverter;
  */
 
 public class AP {
-    public static String filePath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\";
-    public static String fileOutputPath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\outputs\\";
-
+    public static String filePath = "C:\\Users\\Shaun\\Documents\\NSProject\\NSProject\\ns_project\\";
+    public static String fileOutputPath = "C:\\Users\\Shaun\\Documents\\NSProject\\NSProject\\ns_project\\outputs\\";
+    public static int filesize;
     public static String clientSentence;
 
     public static void main(String argv[]) throws Exception {
@@ -62,99 +69,170 @@ public class AP {
 
         System.out.println("*** Done with creating public key and private key from privateServer.der and publicServer.der ***");
 
-        Socket connectionSocket = welcomeSocket.accept();
-        System.out.println("*** Client connected!***");
+        while (true) {
+            Socket connectionSocket = welcomeSocket.accept();
+            System.out.println("*** Client connected!***");
+            boolean clientconnected = true;
 
-        //Input and Output streams
-        DataInputStream is = new DataInputStream(new BufferedInputStream(connectionSocket.getInputStream()));
-        DataOutputStream os = new DataOutputStream(new BufferedOutputStream(connectionSocket.getOutputStream()));
+            //Input and Output streams
+            DataInputStream is = new DataInputStream(new BufferedInputStream(connectionSocket.getInputStream()));
+            DataOutputStream os = new DataOutputStream(new BufferedOutputStream(connectionSocket.getOutputStream()));
 
-        while(true) {
-            System.out.println("*** Awaiting responses from Client! ***");
+            while (clientconnected) {
+                System.out.println("*** Awaiting responses from Client! ***");
 
-            byte[] byteData = receiveData(is, "not data");
+                byte[] byteData = receiveData(is, "not data");
 
-            clientSentence = new String(byteData).trim();
-            System.out.println("*** Received clientSentence: " + clientSentence + " ***");
+                clientSentence = new String(byteData, "UTF-8").trim();
+                System.out.println("*** Received clientSentence: " + clientSentence + " ***");
 
-            if(clientSentence.equals("Hello SecStore, please prove your identity!")) {
-                byte[] gettingNonce = "Please send me a nonce".getBytes();
+                if (clientSentence.equals("Hello SecStore, please prove your identity!")) {
+                    byte[] gettingNonce = "Please send me a nonce".getBytes();
 
-                os.writeInt(gettingNonce.length);
-                os.write(gettingNonce);
-                os.flush();
+                    os.writeInt(gettingNonce.length);
+                    os.write(gettingNonce);
+                    os.flush();
 
-                byteData = receiveData(is, "not data");
+                    byte[] byteDatanonce = receiveData(is, "not data");
 
-                System.out.println("    Received nonce... Encrypting now.");
-                byte[] encryptedNonce = encryptText(byteData, myPrivKey);
 
-                os.writeInt(encryptedNonce.length);
-                os.write(encryptedNonce);
-                os.flush();
-                System.out.println("    Encrypted nonce returned!");
+                    System.out.println("    Received nonce... Encrypting now.");
+                    byte[] encryptedNonce = encryptText(byteDatanonce, myPrivKey);
 
-            } if(clientSentence.equals("Give me your certificate signed by CA")) {
-                System.out.println("*** Reading shaun_chiang.crt and sending over to client ***");
-                File cert = new File(filePath + "shaun_chiang.crt");
-                FileInputStream fis = new FileInputStream(cert);
-                byte[] certByte = new byte[(int) cert.length()];
-                fis.read(certByte);
+                    os.writeInt(encryptedNonce.length);
+                    os.write(encryptedNonce);
+                    os.flush();
+                    System.out.println("    Encrypted nonce returned!");
 
-                os.writeInt(certByte.length);
-                os.write(certByte);
-                os.flush();
-                System.out.println("    Sent shaun_chiang.crt");
-            } else if (clientSentence.trim().equals("OK! I'm uploading now! (Handshake)")) {
-                //FILE UPLOAD?
-                byte[] filenameData = receiveData(is, "not data");
-                String filename = new String(filenameData).trim();
-                FileOutputStream fos=new FileOutputStream(fileOutputPath + filename);
-                boolean stop = false;
-                while(!stop) {
-                    byte[] filebyteData = receiveData(is, "data");
-                    clientSentence = new String(filebyteData).trim();
-                    if(clientSentence.trim().equals("Transmission Over!")) {
-                        stop = true;
-                    } else {
-                        Cipher dcipher = Cipher.getInstance("RSA");
-                        dcipher.init(Cipher.DECRYPT_MODE, myPrivKey);
-                        //System.out.println(Arrays.copyOfRange(filebyteData, 0, 117).length);
-                        byte[] decryptedbyte = dcipher.doFinal(filebyteData);
+                } else if (clientSentence.equals("Give me your certificate signed by CA")) {
+                    System.out.println("*** Reading shaun_chiang.crt and sending over to client ***");
+                    File cert = new File(filePath + "shaun_chiang.crt");
+                    FileInputStream fis = new FileInputStream(cert);
+                    byte[] certByte = new byte[(int) cert.length()];
+                    fis.read(certByte);
 
-                        fos.write(decryptedbyte);
+                    os.writeInt(certByte.length);
+                    os.write(certByte);
+                    os.flush();
+                    System.out.println("    Sent shaun_chiang.crt");
+                } else if (clientSentence.trim().equals("OK! I'm uploading now! (RSA Handshake)")) {
+                    //FILE UPLOAD?
+                    byte[] filenameData = receiveData(is, "not data");
+                    String filename = new String(filenameData, "UTF-8").trim();
+                    String[] tokens = new File(filename).getName().split("\\.(?=[^\\.]+$)");
+                    boolean resolved= false;
+                    String test = fileOutputPath + filename;
+                    String sdf = new SimpleDateFormat("yyyy-MM-dd HHmm-ss").format(new Date());
+                    while (!resolved) {
+                        if (!(new File(test).exists())) {
+                            resolved = true;
+                        } else {
+                            test = fileOutputPath+tokens[0] +" duplicate created at "+ (sdf)+"."+tokens[1];
+                            sdf = new SimpleDateFormat("yyyy-MM-dd HHmm-ss").format(new Date());
+                        }
                     }
+
+                    FileOutputStream fos = new FileOutputStream(test);
+                    boolean stop = false;
+                    while (!stop) {
+                        byte[] filebyteData = receiveData(is, "data");
+                        clientSentence = new String(filebyteData, "UTF-8").trim();
+                        if (clientSentence.trim().equals("Transmission Over!")) {
+                            stop = true;
+                        } else {
+                            Cipher dcipher = Cipher.getInstance("RSA");
+                            dcipher.init(Cipher.DECRYPT_MODE, myPrivKey);
+                            //System.out.println(Arrays.copyOfRange(filebyteData, 0, 117).length);
+                            byte[] decryptedbyte = dcipher.doFinal(filebyteData);
+
+                            fos.write(decryptedbyte);
+                        }
+                    }
+                    System.out.println("    File Closed");
+                    fos.close();
+                    System.out.println("*** Client Disconnected ***");
+                    clientconnected = false;
+                } else if (clientSentence.trim().equals("OK! I'm uploading now! (AES Handshake)")) {
+                    //FILE UPLOAD?
+                    byte[] filenameData = receiveData(is, "not data");
+                    String filename = new String(filenameData, "UTF-8").trim();
+                    String[] tokens = new File(filename).getName().split("\\.(?=[^\\.]+$)");
+                    boolean resolved= false;
+                    String test = fileOutputPath + filename;
+                    String sdf = new SimpleDateFormat("yyyy-MM-dd HHmm ss").format(new Date());
+                    while (!resolved) {
+                        if (!(new File(test).exists())) {
+                            resolved = true;
+                        } else {
+                            test = fileOutputPath+tokens[0] +" duplicate created at "+ (sdf)+"."+tokens[1];
+                            sdf = new SimpleDateFormat("yyyy-MM-dd HHmm ss").format(new Date());
+                        }
+                    }
+                    byte[] nonceData = receiveData(is, "not data");
+
+                    FileOutputStream fos = new FileOutputStream(test);
+                    boolean stop = false;
+                    while (!stop) {
+                        byte[] filebyteData = receiveData(is, "data");
+                        clientSentence = new String(filebyteData,"UTF-8");
+                        if (clientSentence.trim().equals("Transmission Over!")) {
+                            fos.close();
+                            stop = true;
+                        } else {
+                            Cipher dcipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+                            dcipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(nonceData,"AES"));
+                            //System.out.println(Arrays.copyOfRange(filebyteData, 0, 117).length);
+
+                            //USING "DOFINAL" WORKS FOR SMALLFILE.TXT... but not really anything else
+                            //uh but it works sometimes for median
+                            System.out.println(filebyteData.length);
+                            if (filebyteData.length!=filesize) {
+
+                                byte[] resend = "RESEND".getBytes();
+                                os.write(resend);
+                                os.flush();
+                            } else {
+                                byte[] success = "OK! Thanks!".getBytes();
+                                os.writeInt(success.length);
+                                os.write(success);
+                                os.flush();
+                                byte[] decryptedbyte = dcipher.doFinal(filebyteData);
+//                            dcipher.doFinal();
+                                clientSentence = new String(decryptedbyte);
+                                System.out.println(clientSentence);
+
+
+                                fos.write(decryptedbyte);
+                            }
+
+                        }
+                    }
+                    System.out.println("    File Closed");
+                    System.out.println("*** Client Disconnected ***");
+                    clientconnected = false;
+                } else if (clientSentence.equals("Bye!")) {
+                    System.out.println("*** Client Disconnected ***");
+                    clientconnected = false;
+                } else {
+                    System.out.println("*** Either a wrong message is received... ***");
+                    System.out.println("*** Or the above two actions are donee... ***");
                 }
-                System.out.println("    File Closed");
-                fos.close();
-            } else {
-                System.out.println("*** Either a wrong message is received... ***");
-                System.out.println("*** Or the above two actions are donee... ***");
             }
-
-        }
-
-    }
-
-    private static void sendData(DataOutputStream os, byte[] byteData) {
-        if (byteData == null) {return;}
-        try {
-            os.write(byteData);
-            os.flush();
-        }
-        catch (Exception exception) {
         }
     }
-
 
     private static byte[] receiveData(DataInputStream is, String type) throws Exception {
         int length = is.readInt();
+        filesize = length;
+
         System.out.println("        length is " + length + " and type is " + type);
         try {
             if(type.equals("data")) {
-                byte[] inputData = new byte[128];
-                is.read(inputData, 0, length);
-                return inputData;
+//                int lengthActual = is.readInt();
+                byte[] inputData = new byte[length];
+                is.readFully(inputData);
+                byte[] newData = inputData;
+                return newData;
 
             } else {
                 byte[] inputData = new byte[length];
@@ -213,30 +291,5 @@ public class AP {
         PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
         KeyFactory kf = KeyFactory.getInstance("RSA");
         return kf.generatePrivate(spec);
-    }
-    private static byte[] decryptWithLimits(byte[] array, X509Certificate CACert) throws Exception {
-        PublicKey key = CACert.getPublicKey();
-        System.out.println("decrypt in parts");
-        Cipher dcipher = Cipher.getInstance("RSA");
-        dcipher.init(Cipher.DECRYPT_MODE, key);
-        byte[] decryptedbyte = new byte[array.length];
-        System.out.println("length of array is " + array.length);
-        int numberOfArrays = (array.length/128);
-        for(int i = 0; i<numberOfArrays; i++) {
-            if(i == numberOfArrays-1) {
-                System.out.println("decipher from " + i*128 + " to " + (array.length-1));
-                decryptedbyte = dcipher.update(Arrays.copyOfRange(array, i * 128, array.length - 1));
-                System.out.println(Arrays.toString(decryptedbyte));
-
-            } else {
-                System.out.println("decipher from " + i*128 + " to " + ((i+1)*128-1));
-                decryptedbyte = dcipher.update(Arrays.copyOfRange(array, i * 128, ((i + 1) * 128)-1));
-
-            }
-
-        }
-        decryptedbyte = dcipher.doFinal(decryptedbyte);
-        System.out.println(new String(decryptedbyte));
-        return decryptedbyte;
     }
 }
