@@ -37,17 +37,14 @@ import javax.crypto.spec.SecretKeySpec;
  * Created by kisa on 18/4/2016.
  */
 public class APClientAES {
+
+    //CHANGE THIS TO FIT YOUR OWN COMPUTER
     public static String filePath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\";
     public static int byteArrayLength;
     public static String nonce;
 
 
     public static void main(String argv[]) {
-
-        String sentence = "";
-        String modifiedSentence;
-
-
         try {
             //Establish Connection
             Socket clientSocket = new Socket("10.12.23.60", 6789);
@@ -117,7 +114,10 @@ public class APClientAES {
                 os.flush();
 
                 System.out.println("*** Beginning file transfer ***");
-                String file = "smallFile.txt";
+
+                //VARY THIS FILE TO TRANSFER DIFFERENT FILE TYPES
+                String file = "charspritesheet.png";
+
                 File fileToSend = new File(filePath + "\\sampleData\\" +file);
                 InputStream fis3 = new FileInputStream(fileToSend);
                 byte[] fileToSendbytes = new byte[(int) fileToSend.length()];
@@ -164,30 +164,7 @@ public class APClientAES {
         }
     }
 
-    private static byte[] receiveData(DataInputStream is, String type) throws IOException {
-        int length = is.readInt();
-
-        System.out.println("        length is " + length + " and type is " + type);
-        try {
-            if (type.equals("data")) {
-//                int lengthActual = is.readInt();
-                byte[] inputData = new byte[length];
-                is.read(inputData);
-                byte[] newData = inputData;
-                return newData;
-
-            } else {
-                byte[] inputData = new byte[length];
-                is.read(inputData, 0, length);
-                return inputData;
-
-            }
-        } catch (Exception exception) {
-            exception.printStackTrace();
-        }
-        return null;
-    }
-
+    //This method receives data from the server
     private static byte[] receive(DataInputStream is, int length) {
         try {
             byte[] inputData = new byte[length];
@@ -200,6 +177,7 @@ public class APClientAES {
         return null;
     }
 
+    //This method encrypts and sends the byte array
     private static void encryptAESsend (byte[] array, DataOutputStream os, byte[] key) throws Exception {
 
         Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
@@ -216,6 +194,7 @@ public class APClientAES {
         os.flush();
     }
 
+    //This method generates nonce
     public static String generateNonce() {
         SecureRandom sr;
         try {

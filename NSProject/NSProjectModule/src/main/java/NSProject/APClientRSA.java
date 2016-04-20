@@ -31,6 +31,8 @@ import javax.crypto.Cipher;
  * Created by kisa on 18/4/2016.
  */
 public class APClientRSA {
+
+    //CHANGE THIS TO FIT YOUR OWN COMPUTER
     public static String filePath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\";
     public static int byteArrayLength;
     public static String nonce;
@@ -109,7 +111,9 @@ public class APClientRSA {
                 os.flush();
 
                 System.out.println("*** Beginning file transfer ***");
-                String file = "smallFile.txt";
+
+                //VARY THIS FILE TO TRANSFER DIFFERENT FILE TYPES
+                String file = "charspritesheet.png";
                 File fileToSend = new File(filePath + "\\sampleData\\" + file);
                 InputStream fis3 = new FileInputStream(fileToSend);
                 byte[] fileToSendbytes = new byte[(int) fileToSend.length()];
@@ -122,7 +126,7 @@ public class APClientRSA {
                 os.flush();
 
                 System.out.println("    Sending encrypted file over...");
-                encryptWithLimitsandSend(fileToSendbytes, signedCert, os, serverPublicKey);
+                encryptWithLimitsandSend(fileToSendbytes, os, serverPublicKey);
                 System.out.println("    Sent encrypted file");
                 clientSocket.close();
 
@@ -143,6 +147,7 @@ public class APClientRSA {
         }
     }
 
+    //This method receives data from the server.
     private static byte[] receive(DataInputStream is, int length) {
         try
         {
@@ -158,8 +163,8 @@ public class APClientRSA {
     }
 
 
-    private static void encryptWithLimitsandSend(byte[] array, X509Certificate CACert, DataOutputStream os, PublicKey key) throws Exception {
-        System.out.println("encrypt with limits");
+    //This method breaks the byte array up to lengths of 117 and sends them to the server.
+    private static void encryptWithLimitsandSend(byte[] array, DataOutputStream os, PublicKey key) throws Exception {
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.ENCRYPT_MODE, key);
         byte[] encryptedbyte;
@@ -185,6 +190,7 @@ public class APClientRSA {
         }
     }
 
+    //This method generates nonce
     public static String generateNonce() {
         SecureRandom sr;
         try {

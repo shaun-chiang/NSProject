@@ -52,6 +52,8 @@ import javax.xml.bind.DatatypeConverter;
  */
 
 public class AP {
+
+    //CHANGE THIS TO FIT YOUR OWN COMPUTER
     public static String filePath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\";
     public static String fileOutputPath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\outputs\\";
     public static int filesize;
@@ -135,6 +137,8 @@ public class AP {
                        - Client breaks data into chunks of 117 bytes and sends them over.
                      */
 
+                    long startTime = System.currentTimeMillis();
+
                     byte[] filenameData = receiveData(is, "not data");
                     String filename = new String(filenameData, "UTF-8").trim();
                     String[] tokens = new File(filename).getName().split("\\.(?=[^\\.]+$)");
@@ -170,11 +174,17 @@ public class AP {
                     System.out.println("*** Client Disconnected ***");
                     clientconnected = false;
 
+                    long elapsedTime = System.currentTimeMillis()-startTime;
+                    System.out.println("*** Time taken for " + filename + " for RSA is " + elapsedTime + " ***");
+
                 } else if (clientSentence.trim().equals("OK! I'm uploading now! (AES Handshake)")) {
                     /*
                        FILE TRANSFER (AES)
                        - Client simply reads file and sends entire chunk over.
                      */
+
+                    long startTime = System.currentTimeMillis();
+
                     byte[] filenameData = receiveData(is, "not data");
                     String filename = new String(filenameData, "UTF-8").trim();
                     String[] tokens = new File(filename).getName().split("\\.(?=[^\\.]+$)");
@@ -215,6 +225,10 @@ public class AP {
                     System.out.println("    File Closed");
                     System.out.println("*** Client Disconnected ***");
                     clientconnected = false;
+
+                    long elapsedTime = System.currentTimeMillis()-startTime;
+                    System.out.println("*** Time taken for " + filename + "  for AES is " + elapsedTime + " ***");
+
                 } else if (clientSentence.equals("Bye!")) {
                     System.out.println("*** Client Disconnected ***");
                     clientconnected = false;
@@ -226,6 +240,11 @@ public class AP {
         }
     }
 
+    /*
+       This method receives data from the client.
+       If the data is from a file transfer, it will be tagged "AES data" or "RSA data".
+       Otherwise it will be tagged "not data"/anything else.
+     */
     private static byte[] receiveData(DataInputStream is, String type) throws Exception {
         int length = is.readInt();
         filesize = length;
@@ -256,6 +275,7 @@ public class AP {
         return null;
     }
 
+    //This method encrypts text
     private static byte[] encryptText(byte[] text, PrivateKey myPrivKey) {
         try {
             // get an RSA cipher object and print the provider
@@ -272,6 +292,7 @@ public class AP {
         return null;
     }
 
+    //This method gets the private key from a .der file
     public static PrivateKey getPrivKey(String filename)
             throws Exception {
 
