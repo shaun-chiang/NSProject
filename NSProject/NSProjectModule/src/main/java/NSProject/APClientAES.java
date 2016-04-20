@@ -1,4 +1,4 @@
-package hazelz;
+package NSProject;
 
 import com.sun.org.apache.xpath.internal.SourceTree;
 import com.sun.scenario.effect.impl.sw.sse.SSEBlend_SRC_OUTPeer;
@@ -37,7 +37,7 @@ import javax.crypto.spec.SecretKeySpec;
  * Created by kisa on 18/4/2016.
  */
 public class APClientAES {
-    public static String filePath = "C:\\Users\\Shaun\\Documents\\NSProject\\NSProject\\ns_project\\";
+    public static String filePath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\";
     public static int byteArrayLength;
     public static String nonce;
 
@@ -50,7 +50,7 @@ public class APClientAES {
 
         try {
             //Establish Connection
-            Socket clientSocket = new Socket("localhost", 6789);
+            Socket clientSocket = new Socket("10.12.23.60", 6789);
             System.out.println("*** Connected to Server! Is this the legitimate Server? ***");
 
             //Input and Output streams
@@ -117,7 +117,7 @@ public class APClientAES {
                 os.flush();
 
                 System.out.println("*** Beginning file transfer ***");
-                String file = "largeFile.txt";
+                String file = "smallFile.txt";
                 File fileToSend = new File(filePath + "\\sampleData\\" +file);
                 InputStream fis3 = new FileInputStream(fileToSend);
                 byte[] fileToSendbytes = new byte[(int) fileToSend.length()];
@@ -140,16 +140,13 @@ public class APClientAES {
 
 
                 System.out.println("    Sending encrypted file over...");
-                boolean filesentsuccessfully = false;
-                while (!filesentsuccessfully) {
-                    encryptAESsend(fileToSendbytes, os, ftnoncebytes);
-                    byte[] byteData = receiveData(is, "not data");
-                    if (new String(byteData,"UTF-8").trim().equals("OK! Thanks!")) {
-                        filesentsuccessfully=true;
-                    }
-                }System.out.println("    Sent encrypted file");
+
+                encryptAESsend(fileToSendbytes, os, ftnoncebytes);
+
+                System.out.println("    Sent encrypted file");
                 clientSocket.close();
                 System.out.println("*** Socket closed! ***");
+
             } else {
                 System.out.println("*** RETURNED NONCE NOT SAME AS SENT ***");
                 System.out.println("    Server authentication failed :(");
@@ -192,14 +189,12 @@ public class APClientAES {
     }
 
     private static byte[] receive(DataInputStream is, int length) {
-        try
-        {
+        try {
             byte[] inputData = new byte[length];
             is.read(inputData);
             return inputData;
         }
-        catch (Exception exception)
-        {
+        catch (Exception exception){
             exception.printStackTrace();
         }
         return null;
@@ -208,19 +203,11 @@ public class APClientAES {
     private static void encryptAESsend (byte[] array, DataOutputStream os, byte[] key) throws Exception {
 
         Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-        System.out.println("        In encryptAESsend, actual array length is " + array.length);
         cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"));
         byte[] encryptedbyte;
 
-        /*
-           WHEN WE DO "UPDATE" THEN "DOFINAL", IT DOESN'T WORK --> THROWS FINAL BLOCK NOT PROPERLY PADDED
-           AND SENDS 1 LESS SET OF 16 BYTES.
-        */
         encryptedbyte = cipher.doFinal(array);
-//        System.out.println(new String(Arrays.toString(encryptedbyte)));
         os.writeInt(encryptedbyte.length);
-//        os.writeInt(array.length);
-        System.out.println("        In encryptAESsend, encrypted array length is " + encryptedbyte.length);
         os.write(encryptedbyte);
         os.flush();
         encryptedbyte= "Transmission Over!".getBytes();

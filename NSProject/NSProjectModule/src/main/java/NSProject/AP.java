@@ -1,4 +1,4 @@
-package hazelz;
+package NSProject;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -52,8 +52,8 @@ import javax.xml.bind.DatatypeConverter;
  */
 
 public class AP {
-    public static String filePath = "C:\\Users\\Shaun\\Documents\\NSProject\\NSProject\\ns_project\\";
-    public static String fileOutputPath = "C:\\Users\\Shaun\\Documents\\NSProject\\NSProject\\ns_project\\outputs\\";
+    public static String filePath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\";
+    public static String fileOutputPath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\outputs\\";
     public static int filesize;
     public static String clientSentence;
 
@@ -61,13 +61,10 @@ public class AP {
         ServerSocket welcomeSocket = new ServerSocket(6789);
         System.out.println("*** Socket Initialized! ***");
 
-        String publicKeyFileName = filePath+"publicServer.der";
-        PublicKey pubKey = getPubKey(publicKeyFileName);
-
         String privateKeyFileName = filePath+"privateServer.der";
         PrivateKey myPrivKey = getPrivKey(privateKeyFileName);
 
-        System.out.println("*** Done with creating public key and private key from privateServer.der and publicServer.der ***");
+        System.out.println("*** Done with creating private key from privateServer.der ***");
 
         while (true) {
             Socket connectionSocket = welcomeSocket.accept();
@@ -78,12 +75,29 @@ public class AP {
             DataInputStream is = new DataInputStream(new BufferedInputStream(connectionSocket.getInputStream()));
             DataOutputStream os = new DataOutputStream(new BufferedOutputStream(connectionSocket.getOutputStream()));
 
+            /*
+               While this loop is running, the socket can sequentially take in
+               more CP-1 or CP-2 clients.
+             */
             while (clientconnected) {
                 System.out.println("*** Awaiting responses from Client! ***");
 
                 byte[] byteData = receiveData(is, "not data");
 
                 clientSentence = new String(byteData, "UTF-8").trim();
+
+                /*
+                   The logic below checks which action to take.
+                   1. "Hello SecStore, please prove your identity!"
+                      SecStore will request a nonce, and as a first step to prove its authenticity.
+                      It will then return an encrypted nonce.
+                   2. "Give me your certificate signed by CA"
+                      SecStore will send shaun_chiang.crt over to the client.
+                      Client will then use this to decrypt the nonce and ensure that SecStore is
+                      authentic.
+                   3. "OK! I'm uploading now! (RSA/AES Handshake)"
+                      File transfer process begins.
+                 */
                 System.out.println("*** Received clientSentence: " + clientSentence + " ***");
 
                 if (clientSentence.equals("Hello SecStore, please prove your identity!")) {
@@ -94,7 +108,6 @@ public class AP {
                     os.flush();
 
                     byte[] byteDatanonce = receiveData(is, "not data");
-
 
                     System.out.println("    Received nonce... Encrypting now.");
                     byte[] encryptedNonce = encryptText(byteDatanonce, myPrivKey);
@@ -115,19 +128,24 @@ public class AP {
                     os.write(certByte);
                     os.flush();
                     System.out.println("    Sent shaun_chiang.crt");
+
                 } else if (clientSentence.trim().equals("OK! I'm uploading now! (RSA Handshake)")) {
-                    //FILE UPLOAD?
+                    /*
+                       FILE TRANSFER (RSA)
+                       - Client breaks data into chunks of 117 bytes and sends them over.
+                     */
+
                     byte[] filenameData = receiveData(is, "not data");
                     String filename = new String(filenameData, "UTF-8").trim();
                     String[] tokens = new File(filename).getName().split("\\.(?=[^\\.]+$)");
                     boolean resolved= false;
-                    String test = fileOutputPath + filename;
+                    String test = fileOutputPath + "RSA\\" + filename;
                     String sdf = new SimpleDateFormat("yyyy-MM-dd HHmm-ss").format(new Date());
                     while (!resolved) {
                         if (!(new File(test).exists())) {
                             resolved = true;
                         } else {
-                            test = fileOutputPath+tokens[0] +" duplicate created at "+ (sdf)+"."+tokens[1];
+                            test = fileOutputPath+ "RSA\\"+tokens[0] +" duplicate created at "+ (sdf)+"."+tokens[1];
                             sdf = new SimpleDateFormat("yyyy-MM-dd HHmm-ss").format(new Date());
                         }
                     }
@@ -135,14 +153,13 @@ public class AP {
                     FileOutputStream fos = new FileOutputStream(test);
                     boolean stop = false;
                     while (!stop) {
-                        byte[] filebyteData = receiveData(is, "data");
+                        byte[] filebyteData = receiveData(is, "RSA data");
                         clientSentence = new String(filebyteData, "UTF-8").trim();
                         if (clientSentence.trim().equals("Transmission Over!")) {
                             stop = true;
                         } else {
                             Cipher dcipher = Cipher.getInstance("RSA");
                             dcipher.init(Cipher.DECRYPT_MODE, myPrivKey);
-                            //System.out.println(Arrays.copyOfRange(filebyteData, 0, 117).length);
                             byte[] decryptedbyte = dcipher.doFinal(filebyteData);
 
                             fos.write(decryptedbyte);
@@ -152,19 +169,23 @@ public class AP {
                     fos.close();
                     System.out.println("*** Client Disconnected ***");
                     clientconnected = false;
+
                 } else if (clientSentence.trim().equals("OK! I'm uploading now! (AES Handshake)")) {
-                    //FILE UPLOAD?
+                    /*
+                       FILE TRANSFER (AES)
+                       - Client simply reads file and sends entire chunk over.
+                     */
                     byte[] filenameData = receiveData(is, "not data");
                     String filename = new String(filenameData, "UTF-8").trim();
                     String[] tokens = new File(filename).getName().split("\\.(?=[^\\.]+$)");
                     boolean resolved= false;
-                    String test = fileOutputPath + filename;
+                    String test = fileOutputPath + "AES\\" + filename;
                     String sdf = new SimpleDateFormat("yyyy-MM-dd HHmm ss").format(new Date());
                     while (!resolved) {
                         if (!(new File(test).exists())) {
                             resolved = true;
                         } else {
-                            test = fileOutputPath+tokens[0] +" duplicate created at "+ (sdf)+"."+tokens[1];
+                            test = fileOutputPath+ "AES\\" +tokens[0] +" duplicate created at "+ (sdf)+"."+tokens[1];
                             sdf = new SimpleDateFormat("yyyy-MM-dd HHmm ss").format(new Date());
                         }
                     }
@@ -173,7 +194,7 @@ public class AP {
                     FileOutputStream fos = new FileOutputStream(test);
                     boolean stop = false;
                     while (!stop) {
-                        byte[] filebyteData = receiveData(is, "data");
+                        byte[] filebyteData = receiveData(is, "AES data");
                         clientSentence = new String(filebyteData,"UTF-8");
                         if (clientSentence.trim().equals("Transmission Over!")) {
                             fos.close();
@@ -181,30 +202,14 @@ public class AP {
                         } else {
                             Cipher dcipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
                             dcipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(nonceData,"AES"));
-                            //System.out.println(Arrays.copyOfRange(filebyteData, 0, 117).length);
 
-                            //USING "DOFINAL" WORKS FOR SMALLFILE.TXT... but not really anything else
-                            //uh but it works sometimes for median
                             System.out.println(filebyteData.length);
-                            if (filebyteData.length!=filesize) {
 
-                                byte[] resend = "RESEND".getBytes();
-                                os.write(resend);
-                                os.flush();
-                            } else {
-                                byte[] success = "OK! Thanks!".getBytes();
-                                os.writeInt(success.length);
-                                os.write(success);
-                                os.flush();
-                                byte[] decryptedbyte = dcipher.doFinal(filebyteData);
-//                            dcipher.doFinal();
-                                clientSentence = new String(decryptedbyte);
-                                System.out.println(clientSentence);
+                            byte[] decryptedbyte = dcipher.doFinal(filebyteData);
+                            clientSentence = new String(decryptedbyte);
+                            System.out.println(clientSentence);
 
-
-                                fos.write(decryptedbyte);
-                            }
-
+                            fos.write(decryptedbyte);
                         }
                     }
                     System.out.println("    File Closed");
@@ -227,18 +232,22 @@ public class AP {
 
         System.out.println("        length is " + length + " and type is " + type);
         try {
-            if(type.equals("data")) {
-//                int lengthActual = is.readInt();
+            if(type.equals("AES data")) {
                 byte[] inputData = new byte[length];
                 is.readFully(inputData);
                 byte[] newData = inputData;
                 return newData;
 
-            } else {
+            } else if(type.equals("RSA data")) {
+                byte[] inputData = new byte[128];
+                is.read(inputData);
+                byte[] newData = inputData;
+                return newData;
+            }
+            else {
                 byte[] inputData = new byte[length];
                 is.read(inputData, 0, length);
                 return inputData;
-
             }
         }
         catch (Exception exception) {
@@ -261,21 +270,6 @@ public class AP {
         }
         System.out.println("        on EncryptText: returning null :(");
         return null;
-    }
-
-    public static PublicKey getPubKey(String filename)
-            throws Exception {
-
-        File f = new File(filename);
-        FileInputStream fis = new FileInputStream(f);
-        DataInputStream dis = new DataInputStream(fis);
-        byte[] keyBytes = new byte[(int)f.length()];
-        dis.readFully(keyBytes);
-        dis.close();
-
-        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-        KeyFactory kf = KeyFactory.getInstance("RSA");
-        return kf.generatePublic(spec);
     }
 
     public static PrivateKey getPrivKey(String filename)

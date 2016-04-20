@@ -1,4 +1,4 @@
-package hazelz;
+package NSProject;
 
 import com.sun.org.apache.xpath.internal.SourceTree;
 import com.sun.scenario.effect.impl.sw.sse.SSEBlend_SRC_OUTPeer;
@@ -30,18 +30,16 @@ import javax.crypto.Cipher;
 /**
  * Created by kisa on 18/4/2016.
  */
-public class APClient {
-    public static String filePath = "C:\\Users\\Shaun\\Documents\\NSProject\\NSProject\\ns_project\\";
+public class APClientRSA {
+    public static String filePath = "D:\\Documents\\NSProject\\NSProject\\ns_project\\";
     public static int byteArrayLength;
     public static String nonce;
 
     public static void main(String argv[]) {
-        String sentence = "";
-        String modifiedSentence;
 
         try {
             //Establish Connection
-            Socket clientSocket = new Socket("localhost", 6789);
+            Socket clientSocket = new Socket("10.12.23.60", 6789);
             System.out.println("*** Connected to Server! Is this the legitimate Server? ***");
 
             //Input and Output streams
@@ -102,14 +100,17 @@ public class APClient {
                 System.out.println("    Server authenticated!");
 
                 //START FILE UPLOAD
-                byte[] handshake = "OK! I'm uploading now! (Handshake)".getBytes();
+
+                //BEGIN TIMING HERE
+
+                byte[] handshake = "OK! I'm uploading now! (RSA Handshake)".getBytes();
                 os.writeInt(handshake.length);
                 os.write(handshake);
                 os.flush();
 
                 System.out.println("*** Beginning file transfer ***");
-                String file = "medianFile.txt";
-                File fileToSend = new File(filePath + "\\sampleData\\" +file);
+                String file = "smallFile.txt";
+                File fileToSend = new File(filePath + "\\sampleData\\" + file);
                 InputStream fis3 = new FileInputStream(fileToSend);
                 byte[] fileToSendbytes = new byte[(int) fileToSend.length()];
                 fis3.read(fileToSendbytes);
@@ -124,6 +125,7 @@ public class APClient {
                 encryptWithLimitsandSend(fileToSendbytes, signedCert, os, serverPublicKey);
                 System.out.println("    Sent encrypted file");
                 clientSocket.close();
+
             } else {
                 System.out.println("*** RETURNED NONCE NOT SAME AS SENT ***");
                 System.out.println("    Server authentication failed :(");
@@ -156,34 +158,15 @@ public class APClient {
     }
 
 
-    private static void sendData(DataOutputStream os, byte[] byteData) {
-        try {
-            os.write(byteData);
-            os.flush();
-        }
-        catch (Exception exception)
-        {
-            exception.printStackTrace();
-        }
-
-    }
-
-
     private static void encryptWithLimitsandSend(byte[] array, X509Certificate CACert, DataOutputStream os, PublicKey key) throws Exception {
         System.out.println("encrypt with limits");
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.ENCRYPT_MODE, key);
-        byte[] encryptedbyte = new byte[array.length];
-        System.out.println("length of array is " + array.length);
-        System.out.println("Array is: " + Arrays.toString(array));
+        byte[] encryptedbyte;
         int numberOfArrays = (int)Math.ceil(array.length/117.0);
         for(int i = 0; i<numberOfArrays; i++) {
             if(i == numberOfArrays-1) {
-                System.out.println("cipher from " + i*117 + " to " + (array.length-1)+" : "+((array.length)-i*117));
-                System.out.println("PRINTING PRINTING " + new String(Arrays.toString(Arrays.copyOfRange(array, i*117, array.length))));
                 encryptedbyte = cipher.doFinal(Arrays.copyOfRange(array, i * 117, array.length));
-                System.out.println("length is " + encryptedbyte.length);
-                System.out.println(Arrays.toString(encryptedbyte));
                 os.writeInt(encryptedbyte.length);
                 os.write(encryptedbyte);
                 os.flush();
@@ -191,11 +174,9 @@ public class APClient {
                 os.writeInt(encryptedbyte.length);
                 os.write(encryptedbyte);
                 os.flush();
-
+                os.close();
             } else {
-                System.out.println("cipher from " + i*117 + " to " + ((i+1)*117-1)+ " : "+((((i + 1) * 117))-i*117));
                 encryptedbyte = cipher.doFinal(Arrays.copyOfRange(array, i * 117, ((i + 1) * 117)));
-                System.out.println(Arrays.toString(encryptedbyte));
                 os.writeInt(encryptedbyte.length);
                 os.write(encryptedbyte);
                 os.flush();
